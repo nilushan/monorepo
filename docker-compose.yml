@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: nextjs-app
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    # Uncomment and configure the following if you add a database service
+    # depends_on:
+    #   - db
+
+# Example for adding a database service:
+#  db:
+#    image: postgres:15
+#    environment:
+#      POSTGRES_USER: user
+#      POSTGRES_PASSWORD: password
+#      POSTGRES_DB: mydb
+#    ports:
+#      - "5432:5432"
