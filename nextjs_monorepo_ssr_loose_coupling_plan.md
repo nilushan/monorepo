@@ -81,9 +81,9 @@
 ```mermaid
 graph TD
   A[Next.js SSR/API Route]
-  B[Service Layer (/lib/services)]
-  C[DB/API Layer (/lib/db.ts)]
-  D[(Database/External APIs)]
+  B[Service Layer : /lib/services]
+  C[DB/API Layer : /lib/db.ts]
+  D[Database/External APIs]
   A -->|calls| B
   B -->|calls| C
   C -->|queries| D
