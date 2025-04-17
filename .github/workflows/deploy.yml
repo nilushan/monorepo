@@ -1,0 +1,159 @@
+name: Build, Test, and Deploy Application
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  # --- GCP Configuration - Replace with your values ---
+  GCP_PROJECT_ID: '<your-gcp-project-id>'
+  GAR_LOCATION: '<your-gcp-region>' # e.g., us-central1
+  GAR_REPOSITORY: '<your-artifact-registry-repo>' # e.g., my-app-repo
+  CLOUD_RUN_REGION: '<your-gcp-region>' # e.g., us-central1
+  # Staging specific
+  CLOUD_RUN_SERVICE_STAGING: '<your-staging-service-name>'
+  GCP_WIF_PROVIDER_STAGING: 'projects/${{ env.GCP_PROJECT_ID }}/locations/global/workloadIdentityPools/<your-pool-name>/providers/<your-staging-provider-name>'
+  GCP_SERVICE_ACCOUNT_STAGING: '<your-staging-service-account-email>'
+  # Production specific
+  CLOUD_RUN_SERVICE_PRODUCTION: '<your-production-service-name>'
+  GCP_WIF_PROVIDER_PRODUCTION: 'projects/${{ env.GCP_PROJECT_ID }}/locations/global/workloadIdentityPools/<your-pool-name>/providers/<your-production-provider-name>'
+  GCP_SERVICE_ACCOUNT_PRODUCTION: '<your-production-service-account-email>'
+  # --- Application Configuration ---
+  APP_NAME: 'my-app' # Used for image naming, adjust as needed
+  NODE_VERSION: '20' # Specify Node.js version
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.vars.outputs.sha_short }}
+      image_name: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.APP_NAME }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint check
+        run: npm run lint # Assumes "lint" script in package.json
+
+      - name: Type check
+        run: npm run typecheck # Assumes "typecheck": "tsc --noEmit" in package.json
+
+      # Add test steps here when ready
+      # - name: Run unit tests
+      #   run: npm run test:unit # Assumes "test:unit" script
+      # - name: Run integration tests
+      #   run: npm run test:int # Assumes "test:int" script
+
+      # Only build image if tests pass and it's a push to main/develop (not PR)
+      - name: Set Image Tag Output
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
+      # Authenticate, Build, and Push Docker Image (only on push to main/develop)
+      - name: Authenticate to Google Cloud (for Build)
+        id: auth_build
+        uses: google-github-actions/auth@v2
+        if: success() && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        with:
+          # Use staging account for building, or a dedicated build account
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER_STAGING }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT_STAGING }} # Needs Artifact Registry Writer
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        if: success() && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
+      - name: Configure Docker Credential Helper
+        run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev --quiet
+        if: success() && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        if: success() && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        with:
+          context: .
+          push: true
+          tags: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.APP_NAME }}:${{ steps.vars.outputs.sha_short }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: Authenticate to Google Cloud (Staging)
+        id: auth_staging
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER_STAGING }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT_STAGING }} # Needs Cloud Run Admin
+
+      - name: Deploy to Cloud Run (Staging)
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.CLOUD_RUN_SERVICE_STAGING }}
+          region: ${{ env.CLOUD_RUN_REGION }}
+          image: ${{ needs.build-and-test.outputs.image_name }}:${{ needs.build-and-test.outputs.image_tag }}
+          # Add staging-specific flags, env vars, secrets
+          # flags: '--set-env-vars=NODE_ENV=staging,API_URL=...,DB_HOST=secret:staging-db-host:latest --allow-unauthenticated'
+
+      - name: Show Staging URL
+        run: echo "Staging URL: ${{ steps.deploy.outputs.url }}"
+
+  deploy-production:
+    name: Deploy to Production
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: Authenticate to Google Cloud (Production)
+        id: auth_prod
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER_PRODUCTION }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT_PRODUCTION }} # Needs Cloud Run Admin
+
+      - name: Deploy to Cloud Run (Production)
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.CLOUD_RUN_SERVICE_PRODUCTION }}
+          region: ${{ env.CLOUD_RUN_REGION }}
+          image: ${{ needs.build-and-test.outputs.image_name }}:${{ needs.build-and-test.outputs.image_tag }}
+          # Add production-specific flags, env vars, secrets
+          # flags: '--set-env-vars=NODE_ENV=production,API_URL=...,DB_HOST=secret:prod-db-host:latest'
+
+      - name: Show Production URL
+        run: echo "Production URL: ${{ steps.deploy.outputs.url }}"
