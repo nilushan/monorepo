@@ -75,19 +75,19 @@
 graph TD
   A[Next.js App]
   A -->|Frontend| B[React Pages]
-  A -->|API Routes| C[Backend Logic (TypeScript)]
-  C -->|DB/API| D[(Database/External APIs)]
+  A -->|API Routes| C[Backend Logic : TypeScript]
+  C -->|DB/API| D[ Database/External APIs]
 ```
 
 ### After: Split Frontend/Backend
 
 ```mermaid
 graph TD
-  A[Frontend (Next.js)]
-  B[Backend (Express/Fastify)]
+  A[Frontend : Next.js]
+  B[Backend : Express/Fastify]
   C[Shared Types/Services]
   A -->|API Calls| B
-  B -->|DB/API| D[(Database/External APIs)]
+  B -->|DB/API| D[Database/External APIs]
   A <-->|Imports| C
   B <-->|Imports| C
 ```
