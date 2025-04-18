@@ -124,7 +124,7 @@ jobs:
           # flags: '--set-env-vars=NODE_ENV=staging,API_URL=...,DB_HOST=secret:staging-db-host:latest --allow-unauthenticated'
 
       - name: Show Staging URL
-        run: echo "Staging URL: ${{ steps.deploy.outputs.url }}"
+        run: echo "Staging URL ${{ steps.deploy.outputs.url }}"
 
   deploy-production:
     name: Deploy to Production
@@ -156,4 +156,4 @@ jobs:
           # flags: '--set-env-vars=NODE_ENV=production,API_URL=...,DB_HOST=secret:prod-db-host:latest'
 
       - name: Show Production URL
-        run: echo "Production URL: ${{ steps.deploy.outputs.url }}"
+        run: echo "Production URL ${{ steps.deploy.outputs.url }}"
