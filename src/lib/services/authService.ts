@@ -1,30 +1,8 @@
 // src/lib/services/authService.ts
 // Remove: import type { User } from 'next-auth';
-import type { AppUser } from '@/lib/types/userTypes'; // Import our local user type
 
-// --- Placeholder Data & Logic ---
-// Replace these with actual database interactions and password hashing checks
-const users = [
-  { id: '1', name: 'Test User', email: 'test@example.com', passwordHash: 'hashed_password_for_password' },
-];
-
-async function findUserByEmail(email: string): Promise<(typeof users)[0] | null> {
-  console.log(`[AuthService] Searching for user: ${email}`);
-  // Simulate DB lookup
-  await new Promise(resolve => setTimeout(resolve, 20));
-  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-  return user || null;
-}
-
-async function verifyPassword(plainPassword: string, hash: string): Promise<boolean> {
-  console.log(`[AuthService] Verifying password...`);
-  // Simulate password hash comparison (e.g., using bcrypt.compare)
-  await new Promise(resolve => setTimeout(resolve, 30));
-  // IMPORTANT: Replace with actual hash comparison!
-  const isMatch = plainPassword === 'password' && hash === 'hashed_password_for_password';
-  return isMatch;
-}
-// --- End Placeholder ---
+import { validateUserCredentials } from './userService';
+import type { AppUser } from '@/lib/types/userTypes';
 
 
 /**
@@ -39,36 +17,23 @@ async function verifyPassword(plainPassword: string, hash: string): Promise<bool
 export const verifyUserCredentials = async (
   email: string,
   password?: string | null,
-): Promise<AppUser | null> => { // Update return type to use AppUser
+): Promise<AppUser | null> => {
   if (!email || !password) {
     console.log('[AuthService] Missing email or password for verification.');
     return null;
   }
 
-  const user = await findUserByEmail(email);
-
+  // Use the MongoDB-backed user service
+  const user = await validateUserCredentials(email, password);
   if (!user) {
-    console.log(`[AuthService] User not found: ${email}`);
-    // Security: Avoid indicating whether the user exists or password was wrong.
-    // Consider adding a consistent delay here regardless of outcome.
+    console.log(`[AuthService] Invalid credentials for: ${email}`);
     return null;
   }
 
-  const isValidPassword = await verifyPassword(password, user.passwordHash);
-
-  if (!isValidPassword) {
-    console.log(`[AuthService] Invalid password for user: ${email}`);
-    // Security: Consistent delay consideration.
-    return null;
-  }
-
-  console.log(`[AuthService] Credentials verified successfully for: ${email}`);
-  // Return only the necessary user data for the session/token
-  // Exclude sensitive fields like passwordHash
+  // Map to AppUser (exclude passwordHash)
   return {
-    id: user.id,
+    id: user._id.toString(),
     name: user.name,
     email: user.email,
-    // image: user.image, // Include if you have user images
   };
 };

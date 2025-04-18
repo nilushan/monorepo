@@ -76,13 +76,13 @@ const authConfig = {
   },
 
   // --- Custom Pages ---
-  // pages: {
-  //   signIn: '/auth/signin', // Default: /api/auth/signin
-  //   signOut: '/auth/signout',
-  //   error: '/auth/error', // Error code passed in query string as ?error=
-  //   verifyRequest: '/auth/verify-request', // (used for email/passwordless login)
-  //   newUser: '/auth/new-user' // New users will be directed here on first sign in (leave the property out to disable)
-  // },
+  pages: {
+    signIn: '/login', // Use our custom SSR login page
+  //   signOut: '/auth/signout', // Keep default or set custom
+  //   error: '/auth/error', // Keep default or set custom
+  //   verifyRequest: '/auth/verify-request', // Keep default or set custom
+  //   newUser: '/auth/new-user' // Keep default or set custom
+  },
 
   // --- Debugging ---
   // Enable debug messages in the console if you are having problems
