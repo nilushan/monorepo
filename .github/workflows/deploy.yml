@@ -18,11 +18,11 @@ env:
   CLOUD_RUN_REGION: '<your-gcp-region>' # e.g., us-central1
   # Staging specific
   CLOUD_RUN_SERVICE_STAGING: '<your-staging-service-name>'
-  GCP_WIF_PROVIDER_STAGING: 'projects/${{ env.GCP_PROJECT_ID }}/locations/global/workloadIdentityPools/<your-pool-name>/providers/<your-staging-provider-name>'
+  GCP_WIF_PROVIDER_STAGING: 'projects/<your-gcp-project-id>/locations/global/workloadIdentityPools/<your-pool-name>/providers/<your-staging-provider-name>'
   GCP_SERVICE_ACCOUNT_STAGING: '<your-staging-service-account-email>'
   # Production specific
   CLOUD_RUN_SERVICE_PRODUCTION: '<your-production-service-name>'
-  GCP_WIF_PROVIDER_PRODUCTION: 'projects/${{ env.GCP_PROJECT_ID }}/locations/global/workloadIdentityPools/<your-pool-name>/providers/<your-production-provider-name>'
+  GCP_WIF_PROVIDER_PRODUCTION: 'projects/<your-gcp-project-id>/locations/global/workloadIdentityPools/<your-pool-name>/providers/<your-production-provider-name>'
   GCP_SERVICE_ACCOUNT_PRODUCTION: '<your-production-service-account-email>'
   # --- Application Configuration ---
   APP_NAME: 'my-app' # Used for image naming, adjust as needed
