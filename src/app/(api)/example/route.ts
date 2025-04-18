@@ -17,8 +17,14 @@ export async function GET(request: Request) {
     // Delegate the core logic to the service function
     const result: ExampleData = await processExampleData(input);
 
-    // Return the result from the service
-    return NextResponse.json(result);
+    // Return the result from the service with CORS headers
+    return NextResponse.json(result, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+    });
   } catch (error) {
     console.error('Error in /api/example GET handler:', error);
     // It's good practice to avoid leaking internal error details
@@ -43,8 +49,15 @@ export async function POST(request: Request) {
     // Delegate the core logic to the service function
     const result: ExampleData = await processExampleData(input);
 
-    // Return the result from the service
-    return NextResponse.json(result, { status: 201 }); // 201 Created for POST success
+    // Return the result from the service with CORS headers
+    return NextResponse.json(result, {
+      status: 201, // 201 Created for POST success
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+    });
   } catch (error) {
     console.error('Error in /api/example POST handler:', error);
     // Handle potential JSON parsing errors or other issues
