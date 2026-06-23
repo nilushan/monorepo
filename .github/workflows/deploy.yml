@@ -11,6 +11,11 @@ on:
       - develop
 
 env:
+  # The Google Cloud build & deploy steps are skipped until deployment is
+  # configured. To enable them: fill in the GCP values below, configure
+  # Workload Identity Federation, and set a repository variable
+  # GCP_ENABLED=true (Settings → Secrets and variables → Actions → Variables).
+  # Lint + type-check always run, so CI stays green in the meantime.
   # --- GCP Configuration - Replace with your values ---
   GCP_PROJECT_ID: '<your-gcp-project-id>'
   GAR_LOCATION: '<your-gcp-region>' # e.g., us-central1
@@ -70,7 +75,7 @@ jobs:
       - name: Authenticate to Google Cloud (for Build)
         id: auth_build
         uses: google-github-actions/auth@v2
-        if: success() && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        if: success() && vars.GCP_ENABLED == 'true' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
         with:
           # Use staging account for building, or a dedicated build account
           workload_identity_provider: ${{ env.GCP_WIF_PROVIDER_STAGING }}
@@ -78,15 +83,15 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        if: success() && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        if: success() && vars.GCP_ENABLED == 'true' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
       - name: Configure Docker Credential Helper
         run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev --quiet
-        if: success() && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        if: success() && vars.GCP_ENABLED == 'true' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
-        if: success() && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        if: success() && vars.GCP_ENABLED == 'true' && github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
         with:
           context: .
           push: true
@@ -98,7 +103,7 @@ jobs:
     name: Deploy to Staging
     needs: build-and-test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    if: vars.GCP_ENABLED == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/develop'
     environment:
       name: staging
       url: ${{ steps.deploy.outputs.url }}
@@ -130,7 +135,7 @@ jobs:
     name: Deploy to Production
     needs: build-and-test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: vars.GCP_ENABLED == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
       name: production
       url: ${{ steps.deploy.outputs.url }}
