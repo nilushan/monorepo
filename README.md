@@ -1,166 +1,91 @@
-# Project Title (Replace Me)
+# Next.js Service-Oriented Architecture Reference
 
-This is a Next.js application bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-Jest-99425B?logo=jest&logoColor=white)
+
+A reference Next.js application demonstrating a **loosely-coupled, service-oriented architecture** — built to explore how to keep business logic, data access, and the UI cleanly separated within a single App Router codebase, with first-class testing and a path to production on Google Cloud.
+
+The architectural reasoning behind this project (including the monorepo-vs-split and SSR-vs-API-routes trade-offs) is documented in [`docs/`](docs) — see [`consolidated_architecture_plan.md`](docs/consolidated_architecture_plan.md) and [`architecture_decision_checklist.md`](docs/architecture_decision_checklist.md).
 
 ## Architecture
 
-This project follows the architecture outlined in [`docs/consolidated_architecture_plan.md`](docs/consolidated_architecture_plan.md) and [`docs/architecture_decision_checklist.md`](docs/architecture_decision_checklist.md). Key aspects include:
+Key aspects of the design:
 
-* Next.js with App Router and TypeScript
-* SSR and API Routes
-* Loosely coupled business logic in `src/lib/services`
-* Shared types in `src/lib/types`
-* Utility functions in `src/lib/utils`
-* External API clients in `src/lib/clients`
-* Jest and Testing Library for testing
-* GitHub Actions for CI/CD targeting Google Cloud Run/GKE
-
-### System Architecture Diagram
-
-A high-level system diagram (Mermaid format) is available in [docs/architecture_diagram.mmd](docs/architecture_diagram.mmd).
-
-## Architecture Diagram
+- **Next.js App Router + TypeScript** with SSR and API routes
+- **Authentication** via NextAuth, with passwords hashed using `bcryptjs` (plaintext is never stored)
+- **Business logic** isolated in `src/lib/services` (e.g. `userService.ts`)
+- **External API clients** in `src/lib/clients` (e.g. `mongoClient.ts`)
+- **Shared domain types** in `src/lib/types`; utilities in `src/lib/utils`
+- **MongoDB** for persistence (via `docker-compose` for local development)
+- **Jest + Testing Library** for unit and integration tests
+- **GitHub Actions** CI/CD targeting Google Cloud Run / GKE
 
 ```mermaid
 flowchart TD
-    subgraph Next.js_App
-        A[App Router (src/app/)]
-        B[API Routes (Placeholder)]
-        C[Frontend Pages/Components (Placeholder)]
+    subgraph App["Next.js App"]
+        A["App Router (src/app)"]
+        B["API Routes"]
+        C["Pages & Components"]
     end
-
     subgraph Backend
-        D[User Service (src/lib/services/userService.ts)]
-        E[Auth Service (Placeholder)]
-        F[Additional Services (Email, Logging, etc.) (Placeholder)]
+        D["User Service"]
+        E["Auth (NextAuth)"]
     end
-
     subgraph Data
-        G[MongoDB (docker-compose)]
-        H[MongoDB Client (src/lib/clients/mongoClient.ts)]
-        I[User Types (src/lib/types/userTypes.ts)]
-        J[.env.local (MONGODB_URI)]
+        H["MongoDB Client"]
+        G["MongoDB (docker-compose)"]
+        I["Shared Types"]
     end
 
-    subgraph Testing
-        K[Unit Tests (Placeholder)]
-        L[Integration Tests (Placeholder)]
-    end
-m 
-    %% Relationships
-    A -->|calls| B
-    B -->|uses| D
-    D -->|uses| H
-    H -->|connects to| G
-    D -->|uses| I
-    H -->|reads| J
-    D -->|planned| E
-    D -->|planned| F
-    A -->|planned| C
-    D -->|tested by| K
-    B -->|tested by| L
+    A --> B
+    B --> D
+    A --> E
+    D --> H
+    H --> G
+    D --> I
 ```
 
-## Getting Started
+## Getting started
 
-First, install the dependencies:
+**Prerequisites:** Node.js 20+, Docker (for local MongoDB).
 
 ```bash
+# Install dependencies
 npm install
-# or
-# yarn install
-# or
-# pnpm install
+
+# Configure environment
+cp .env.example .env.local        # set MONGODB_URI and NextAuth secrets
+
+# Run the dev server (Turbopack)
+npm run dev                       # http://localhost:3000
 ```
 
-Second, create a local environment file by copying the example:
-
-```bash
-cp .env.example .env.local
-```
-
-Update `.env.local` with your specific development environment variables (e.g., database connection string if applicable).
-
-Third, run the development server:
-
-```bash
-npm run dev
-# or
-# yarn dev
-# or
-# pnpm dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-## Running with Docker
-
-You can build and run the app locally using Docker:
-
-```bash
-docker build -t my-nextjs-app .
-docker run --env-file .env.local -p 3000:3000 my-nextjs-app
-```
-
-Or use Docker Compose for easier orchestration (recommended for local development):
+### Run everything with Docker Compose (recommended for local dev)
 
 ```bash
 docker-compose up --build
 ```
 
-This will use the `docker-compose.yml` file to build the image and start the app with environment variables from `.env.local`. The app will be available at [http://localhost:3000](http://localhost:3000).
+This starts the app together with a local MongoDB service defined in `docker-compose.yml`. The database is reachable at `mongodb://root:example@localhost:27017` (matching `MONGODB_URI`); user records are managed by `src/lib/services/userService.ts`. Connect a GUI such as MongoDB Compass to `localhost:27017` to inspect data.
 
-### Local MongoDB Database
+## Scripts
 
-A MongoDB service is included in `docker-compose.yml` for local development. User details and credentials are securely stored in MongoDB.
-
-**How to use:**
-- The MongoDB container runs on `mongodb://root:example@localhost:27017` (see `.env.local` for `MONGODB_URI`).
-- User data is managed via the service in `src/lib/services/userService.ts` and types in `src/lib/types/userTypes.ts`.
-- Passwords are hashed using bcryptjs before storage; plaintext passwords are never saved.
-- To inspect the database, you can connect a MongoDB GUI (e.g., MongoDB Compass) to `localhost:27017` with username `root` and password `example`.
-
-No additional setup is required—just run `docker-compose up --build` and the app will connect to MongoDB automatically.
-
-### Extending with Additional Services
-
-To add a database or other services, extend the `docker-compose.yml` file. See the commented example in that file for adding a PostgreSQL service.
-
-## Available Scripts
-
-* `npm run dev`: Starts the development server.
-* `npm run build`: Builds the application for production.
-* `npm run start`: Starts the production server (requires `build` first).
-* `npm run lint`: Runs ESLint checks.
-* `npm run typecheck`: Runs TypeScript static type checking.
-* `npm test`: Runs all tests using Jest.
-* `npm run test:watch`: Runs tests in watch mode.
-* `npm run test:unit`: Runs only unit tests.
-* `npm run test:int`: Runs only integration tests.
-* `npm run test:cov`: Runs tests and generates a coverage report.
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the development server (Turbopack) |
+| `npm run build` / `npm start` | Production build / serve (standalone output) |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript type checking |
+| `npm test` | Run all Jest tests |
+| `npm run test:unit` / `test:int` | Unit / integration tests only |
+| `npm run test:cov` | Tests with coverage report |
 
 ## Testing
 
-Unit tests are located in `tests/unit` and integration tests in `tests/integration`. Run all tests with:
-
-```bash
-npm test
-```
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-* [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-* [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+Unit tests live in `tests/unit`, integration tests in `tests/integration`. Run the full suite with `npm test`.
 
 ## Deployment
 
-Deployment is handled via the GitHub Actions workflow defined in `.github/workflows/deploy.yml`. See the workflow file and [`docs/consolidated_architecture_plan.md`](docs/consolidated_architecture_plan.md) for details on configuration and targets (Cloud Run/GKE).
-
-## References
-
-* [`docs/consolidated_architecture_plan.md`](docs/consolidated_architecture_plan.md)
-* [`docs/architecture_decision_checklist.md`](docs/architecture_decision_checklist.md)
+Deployment is handled by the GitHub Actions workflow in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), targeting Google Cloud Run / GKE. See [`docs/consolidated_architecture_plan.md`](docs/consolidated_architecture_plan.md) for configuration details.
